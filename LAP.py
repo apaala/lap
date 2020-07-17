@@ -11,11 +11,15 @@ parser.add_option("-n", "--name", dest="name",help="Name for output file", metav
 client = docker.from_env()
 vol_dir="/Users/apaala/Docker/LAP_vol/"
 def prep_mod1(target, fname):
-    bgcmd="bgzip -c "+ target +">/tmp/py_test/"+fname+"_out.vcf.gz"
+    bgcmd="bgzip -c "+ target+" > /tmp/py_test/"+fname+".vcf.gz"
     print(bgcmd)
     bgzipf=target+".gz"
+    print(bgzipf)
     tbxf=bgzipf+".tbi"
-    client.containers.run("dockerbiotools/bcftools:latest", bgcmd, volumes={vol_dir:{'bind':'/tmp', 'mode':'rw'}})
+    print(tbxf)
+    ###Something wrong in env here
+    #client.containers.run("dockerbiotools/bcftools:latest", "ls /tmp" , volumes={'/Users/apaala/Docker/LAP_vol/':{'bind':'/tmp', 'mode':'rw'}})
+    client.containers.run("dockerbiotools/bcftools:latest", bgcmd, volumes={'/Users/apaala/Docker/LAP_vol/':{'bind':'/tmp', 'mode':'rw'}})
     tbx_cmd="tabix -p vcf "+bgzipf
     client.containers.run("dockerbiotools/bcftools:latest", tbx_cmd, volumes={vol_dir:{'bind':'/tmp', 'mode':'rw'}})
     bcfcmd="bcftools filter --include 'AN=2*N_SAMPLES' -Oz -o /tmp/"+fname+"_out.vcf.gz "+ target
