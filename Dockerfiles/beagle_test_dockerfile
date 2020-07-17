@@ -1,0 +1,11 @@
+FROM quay.io/biocontainers/beagle:5.1_24Aug19.3e8--0
+RUN ["java","-version"]
+
+COPY beagle.24Mar20.5f5.jar /home/ 
+COPY conform-gt.24May16.cee.jar /home/
+
+CMD java –jar /home/beagle.24Mar20.5f5.jar
+CMD java –jar /home/conform-gt.24May16.cee.jar
+
+COPY beagle.example /home/
+RUN ["sh", "/home/beagle.example"]
