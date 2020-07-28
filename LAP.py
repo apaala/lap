@@ -27,6 +27,15 @@ def prep_mod1(target, fname):
 
 prep_mod1(options.target, options.name)
 
+def prep_mod_local(target, fname):
+    bgcmd="bgzip "+target+"> "+fname+"_"+target+".gz" 
+    bgzipf=target+".gz"
+    os.system(cmd)
+    tabxcmd="tabix -p vcf "+bgzipf
+    os.system(tabxcmd)
+    bcfcmd="bcftools filter --include 'AN=2*N_SAMPLES' -Oz -o "+fname+ "_out.vcf.gz "+ target
+    os.system(bcfcmd)
+
 #client.containers.run("apaala/beagle:0.1", "sh /home/beagle.example")
 #client.containers.run('apaala/beagle:0.1','sh /tmp/beagle.example', volumes={'/Users/apaala/Docker/LAP_vol/':{'bind':'/tmp', 'mode':'rw'}})
 #client.containers.run('apaala/beagle:0.1','sh /tmp/beagle.example_ed', volumes={'/Users/apaala/Docker/LAP_vol/':{'bind':'/tmp', 'mode':'rw'}})
