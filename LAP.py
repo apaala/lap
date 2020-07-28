@@ -6,10 +6,14 @@ parser = OptionParser()
 parser.add_option("-t", "--target", dest="target",help="Path to target", metavar="FILE") 
 parser.add_option("-r", "--reference", dest="reference",help="Path to reference", metavar="FILE") 
 parser.add_option("-n", "--name", dest="name",help="Name for output file", metavar="NAME")
+parser.add_option("-o", "--out", dest="outdir",help="output dir", metavar="Out")
 (options, args) = parser.parse_args() 
 
 client = docker.from_env()
 vol_dir="/Users/apaala/Docker/LAP_vol/"
+name=os.path.basename(options.name)
+
+
 def prep_mod1(target, fname):
     bgcmd="bgzip -c "+ target+" > /tmp/py_test/"+fname+".vcf.gz"
     print(bgcmd)
@@ -25,16 +29,28 @@ def prep_mod1(target, fname):
     bcfcmd="bcftools filter --include 'AN=2*N_SAMPLES' -Oz -o /tmp/"+fname+"_out.vcf.gz "+ target
     client.containers.run("dockerbiotools/bcftools:latest", bcfcmd, volumes={vol_dir:{'bind':'/tmp', 'mode':'rw'}})
 
-prep_mod1(options.target, options.name)
+#prep_mod1(options.target, options.name)
+#prep_mod_local(options.target, options.name)
 
-def prep_mod_local(target, fname):
-    bgcmd="bgzip "+target+"> "+fname+"_"+target+".gz" 
-    bgzipf=target+".gz"
-    os.system(cmd)
+def prep_mod_local(target,ref, fname, outdir):
+    bgcmd="bgzip -c "+target+"> "+outdir+"/"+fname+"_"+os.path.basename(target)+".gz" 
+    bgzipf=outdir+"/"+fname+"_"+os.path.basename(target)+".gz"
+#    os.system(cmd)
     tabxcmd="tabix -p vcf "+bgzipf
-    os.system(tabxcmd)
-    bcfcmd="bcftools filter --include 'AN=2*N_SAMPLES' -Oz -o "+fname+ "_out.vcf.gz "+ target
-    os.system(bcfcmd)
+#    os.system(tabxcmd)
+    tbxf=bgzipf+".tbi"
+    bcfcmd="bcftools filter --include 'AN=2*N_SAMPLES' -Oz -o "+outdir+"/"+fname+ "_out.vcf.gz "+ bgzipf
+#    os.system(bcfcmd)
+    bcffile=outdir+"/"+fname+ "_out.vcf.gz
+    conformcmd="java -jar /usr/local/packages/conform-gt/conform-gt.jar ref="+ref+" gt="+bcffile+"chrom=1"+" out=conform"+fname
+    print(conformcmd)
+    print(bgcmd)
+    print(bgzipf)
+    print(tabxcmd)
+    print(bcfcmd)
+
+prep_mod_local(options.target, options.name, options.outdir) 
+
 
 #client.containers.run("apaala/beagle:0.1", "sh /home/beagle.example")
 #client.containers.run('apaala/beagle:0.1','sh /tmp/beagle.example', volumes={'/Users/apaala/Docker/LAP_vol/':{'bind':'/tmp', 'mode':'rw'}})
