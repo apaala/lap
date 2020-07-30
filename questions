@@ -1,0 +1,1 @@
+$bcftools view -h $vcf | tail -1 | tr '\t' '\n' | grep "NWD" > temp.chr$chr.txt #modify grep as needed where does value come from?what is being grepped?

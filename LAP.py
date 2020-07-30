@@ -51,20 +51,22 @@ def prep_mod_local(target,ref, fname, outdir):
     bcffile=outdir+"/"+fname+ "_out.vcf.gz"
     conformcmd="java -jar /usr/local/packages/conform-gt/conform-gt.jar ref="+ref+" gt="+bcffile+" chrom=1"+" out=conform"+fname
     print(conformcmd)
-    conformf=outdir+ "/conform" +fname 
+    conformf=outdir+ "/conform" +fname+".vcf.gz" 
     conformtbx="tabix "+conformf
-    
+    print(conformtbx)
     print(conformf)
 #    $bcftools merge -m none -o $temp -Oz --threads 2 $conformed_file $peru_1KG
     bcfm="bcftools merge -m none -o mergeout_"+ fname+".vcf.gz -Oz --threads 2 "+ conformf+ " "+ref
     #$bcftools view -h $vcf | tail -1 | tr '\t' '\n' | grep "NWD" > temp.chr$chr.txt
     print(bcfm)
     mfile="mergeout_"+ fname+".vcf.gz"
-    bcfc="bcftools view -h "+mfile+" | tail -1 | tr '\t' '\n' | grep 'NWD' > temp_"+mfile
+    bcfc="bcftools view -h "+mfile+" | tail -1 | tr \'\\t\' \'\\n\' | grep 'NWD' > temp_"+mfile
     print(bcfc)
     #cat temp.chr$chr.txt /home/dloesch/WORKSPACE/rfmix.ref_samples.txt > samples.chr$chr.txt 
-    #ccmd="cat temp_"+mfile+ 
+    ccmd="cat temp_"+mfile+ " "+samples+" > samples_chr"+fname+".txt"
+    print(ccmd)
     #$bcftools view -S samples.chr$chr.txt -e 'GT[*] = "mis"' -o $merged -Oz $temp 
+    bccmd="
     #ref=/local/chib/toconnor_grp/LARGE-PD/1KG/HG38/chr$chr.1kg.HG38.vcf.gz 
     #java -jar $conform ref=$ref gt=$merged chrom=chr$chr out=$prefix.merged.chr$chr.CONFORM match=POS 
     #tabix $prefix.merged.chr$chr.CONFORM.vcf.gz 
