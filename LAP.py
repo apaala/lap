@@ -10,6 +10,7 @@ parser.add_option("-n", "--name", dest="name",help="Name for output file", metav
 parser.add_option("-o", "--out", dest="outdir",help="output dir", metavar="Out")
 parser.add_option("-c", "--chr", dest="chrom",help="chromosome", metavar="NUM") 
 parser.add_option("-s", "--sample", dest="samples",help="samplelist", metavar="FILE")
+parser.add_option("-m", "--map", dest="map",help="mapfile", metavar="FILE") 
 (options, args) = parser.parse_args() 
 
 client = docker.from_env()
@@ -66,7 +67,7 @@ def prep_mod_local(target,ref, fname, outdir):
     ccmd="cat temp_"+mfile+ " "+samples+" > samples_chr"+fname+".txt"
     print(ccmd)
     #$bcftools view -S samples.chr$chr.txt -e 'GT[*] = "mis"' -o $merged -Oz $temp 
-    bccmd="
+#    bccmd="
     #ref=/local/chib/toconnor_grp/LARGE-PD/1KG/HG38/chr$chr.1kg.HG38.vcf.gz 
     #java -jar $conform ref=$ref gt=$merged chrom=chr$chr out=$prefix.merged.chr$chr.CONFORM match=POS 
     #tabix $prefix.merged.chr$chr.CONFORM.vcf.gz 
@@ -76,8 +77,18 @@ def prep_mod_local(target,ref, fname, outdir):
     #print(bcfcmd)
 
 
-#def beagle_rfmix(target, ref, fname):
-    
+def beagle_rfmix(target, ref, fname, chrn):
+    #rfmix=/home/dloesch/WORKSPACE/rfmix.1KG_samples.txt 
+    #$bcftools view -S^$rfmix  -e 'GT[*] = "mis"' -o $new_ref -Oz $ref 
+    #tabix $new_ref #index if needed 
+ 
+    #run beagle 
+#   beagle=/usr/local/packages/beagle-5.0/beagle.jar 
+ 
+    #out=$prefix.merged.chr$chr.PHASED 
+    #map=/local/chib/toconnor_grp/LARGE-PD/genetic_maps/plink.chr$chr.v2.GRCh38.map 
+ 
+    #java -Xmx50g -jar $beagle gt=$gt ref=$new_ref out=$out map=$map chrom=chr$chr impute=false 
 
 prep_mod_local(options.target,options.reference, options.name, options.outdir) 
 
