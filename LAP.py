@@ -14,27 +14,51 @@ parser.add_option("-m", "--map", dest="map",help="mapfile", metavar="FILE")
 (options, args) = parser.parse_args() 
 
 client = docker.from_env()
-vol_dir="/Users/apaala/Docker/LAP_vol/"
+vol_dir="/local/devel/local_ancestry_pipeline/volume_lap/"
 name=os.path.basename(options.name)
 
 
-def prep_mod1(target, fname):
-    bgcmd="bgzip -c "+ target+" > /tmp/py_test/"+fname+".vcf.gz"
+def prep_mod1(target,ref, fname,chrom):
+    bgcmd="bgzip -c "+ target+" > /tmp/"+fname+".vcf.gz"
     print(bgcmd)
-    bgzipf=target+".gz"
+    bgzipf="/tmp/"+fname+".vcf.gz"
     print(bgzipf)
     tbxf=bgzipf+".tbi"
     print(tbxf)
-    ###Something wrong in env here
-    #client.containers.run("dockerbiotools/bcftools:latest", "ls /tmp" , volumes={'/Users/apaala/Docker/LAP_vol/':{'bind':'/tmp', 'mode':'rw'}})
-    client.containers.run("dockerbiotools/bcftools:latest", bgcmd, volumes={'/Users/apaala/Docker/LAP_vol/':{'bind':'/tmp', 'mode':'rw'}})
+    client.containers.run("dockerbiotools/bcftools:latest", command=[bgcmd] , volumes={vol_dir: {'mode': 'rw', 'bind': '/tmp'}})
+    #client.containers.run("dockerbiotools/bcftools:latest", bgcmd, volumes={'/Users/apaala/Docker/LAP_vol/':{'bind':'/tmp', 'mode':'rw'}})
     tbx_cmd="tabix -p vcf "+bgzipf
-    client.containers.run("dockerbiotools/bcftools:latest", tbx_cmd, volumes={vol_dir:{'bind':'/tmp', 'mode':'rw'}})
-    bcfcmd="bcftools filter --include 'AN=2*N_SAMPLES' -Oz -o /tmp/"+fname+"_out.vcf.gz "+ target
-    client.containers.run("dockerbiotools/bcftools:latest", bcfcmd, volumes={vol_dir:{'bind':'/tmp', 'mode':'rw'}})
+    client.containers.run("dockerbiotools/bcftools:latest", command=[tbx_cmd], volumes={vol_dir:{'bind':'/tmp', 'mode':'rw'}})
+    bcfcmd="bcftools filter --include 'AN=2*N_SAMPLES' -Oz -o /tmp/"+fname+"filt_out.vcf.gz "+ bgzipf
+    client.containers.run("dockerbiotools/bcftools:latest", command=[bcfcmd], volumes={vol_dir:{'bind':'/tmp', 'mode':'rw'}})
+    bcff="/tmp/"+fname+"filt_out.vcf.gz"
 
-#prep_mod1(options.target, options.name)
+    ###ADD bcftools merge cmd
+#    $bcftools merge -m none -o $temp -Oz --threads 2 $conformed_file $peru_1KG 
+#    mergec="bcftools merge -m none -o "+fname+"_"+str(chrom)+"_merged.vcf.gz -Oz --threads 2 "+conf+" "+ref
+#    client.containers.run("dockerbiotools/bcftools:latest", command=mergec, volumes={vol_dir:{'bind':'/tmp', 'mode':'rw'}})
+    ###Edit for chrom=1
+    conformcmd="java -jar /home/conform-gt.24May16.cee.jar ref="+ref+" gt="+bcff+" chrom=1"+" out=/tmp/conform"+fname
+    client.containers.run("apaala/beagle:0.1", command=conformcmd, volumes={vol_dir:{'bind':'/tmp', 'mode':'rw'}})
+    conf="/tmp/conform"+fname+".vcf.gz"
+###ADD bcftools merge cmd 
+#    $bcftools merge -m none -o $temp -Oz --threads 2 $conformed_file $peru_1KG  
+    mergec="bcftools merge -m none -o "+fname+"_"+str(chrom)+"_merged.vcf.gz -Oz --threads 2 "+conf+" "+ref
+    client.containers.run("dockerbiotools/bcftools:latest", command=mergec, volumes={vol_dir:{'bind':'/tmp', 'mode':'rw'}})
+
+    tbxcon="tabix -p vcf "+conf
+    client.containers.run("dockerbiotools/bcftools:latest", command=[tbxcon], volumes={vol_dir:{'bind':'/tmp', 'mode':'rw'}})
+    ##Change cmd to reflect beagle map file
+    cmap="/home/map38/plink.chr"+str(chrom)+".GRCh38.map"
+    beagcmd="java -jar /home/beagle.24Mar20.5f5.jar gt="+conf+" ref="+ref+" map="+cmap+" chrom="+str(chrom)+" impute=False"
+    client.containers.run("apaala/beagle:0.1",command=beagcmd,volumes={vol_dir: {'mode': 'rw', 'bind': '/tmp'}},tty=True)
+    
+
+tmp_target="/tmp/"+os.path.basename(options.target)
+prep_mod1(tmp_target, options.reference, options.name, options.chrom)
 #prep_mod_local(options.target, options.name)
+#def determine_map(chrom):
+#    hold=client.containers.run("apaala/beagle:0.1", command='ls *.
 
 def prep_mod_local(target,ref, fname, outdir):
     bgcmd="bgzip -c "+target+"> "+outdir+"/"+fname+"_"+os.path.basename(target)+".gz" 
@@ -77,7 +101,7 @@ def prep_mod_local(target,ref, fname, outdir):
     #print(bcfcmd)
 
 
-def beagle_rfmix(target, ref, fname, chrn):
+#def beagle_rfmix(target, ref, fname, chrn):
     #rfmix=/home/dloesch/WORKSPACE/rfmix.1KG_samples.txt 
     #$bcftools view -S^$rfmix  -e 'GT[*] = "mis"' -o $new_ref -Oz $ref 
     #tabix $new_ref #index if needed 
@@ -90,7 +114,7 @@ def beagle_rfmix(target, ref, fname, chrn):
  
     #java -Xmx50g -jar $beagle gt=$gt ref=$new_ref out=$out map=$map chrom=chr$chr impute=false 
 
-prep_mod_local(options.target,options.reference, options.name, options.outdir) 
+#prep_mod_local(options.target,options.reference, options.name, options.outdir) 
 
 
 #client.containers.run("apaala/beagle:0.1", "sh /home/beagle.example")
