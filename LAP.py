@@ -20,42 +20,67 @@ name=os.path.basename(options.name)
 
 def prep_mod1(target,ref, fname,chrom):
     bgcmd="bgzip -c "+ target+" > /tmp/"+fname+".vcf.gz"
-    print(bgcmd)
+    print("1: starting bgzip")
     bgzipf="/tmp/"+fname+".vcf.gz"
     print(bgzipf)
     tbxf=bgzipf+".tbi"
-    print(tbxf)
+    #print(tbxf)
     client.containers.run("dockerbiotools/bcftools:latest", command=[bgcmd] , volumes={vol_dir: {'mode': 'rw', 'bind': '/tmp'}})
-    #client.containers.run("dockerbiotools/bcftools:latest", bgcmd, volumes={'/Users/apaala/Docker/LAP_vol/':{'bind':'/tmp', 'mode':'rw'}})
     tbx_cmd="tabix -p vcf "+bgzipf
     client.containers.run("dockerbiotools/bcftools:latest", command=[tbx_cmd], volumes={vol_dir:{'bind':'/tmp', 'mode':'rw'}})
+    print("2: running tabix")
     bcfcmd="bcftools filter --include 'AN=2*N_SAMPLES' -Oz -o /tmp/"+fname+"filt_out.vcf.gz "+ bgzipf
+    print("3: filter with bcftools")
     client.containers.run("dockerbiotools/bcftools:latest", command=[bcfcmd], volumes={vol_dir:{'bind':'/tmp', 'mode':'rw'}})
     bcff="/tmp/"+fname+"filt_out.vcf.gz"
-
-    ###ADD bcftools merge cmd
-#    $bcftools merge -m none -o $temp -Oz --threads 2 $conformed_file $peru_1KG 
-#    mergec="bcftools merge -m none -o "+fname+"_"+str(chrom)+"_merged.vcf.gz -Oz --threads 2 "+conf+" "+ref
-#    client.containers.run("dockerbiotools/bcftools:latest", command=mergec, volumes={vol_dir:{'bind':'/tmp', 'mode':'rw'}})
     ###Edit for chrom=1
-    conformcmd="java -jar /home/conform-gt.24May16.cee.jar ref="+ref+" gt="+bcff+" chrom=1"+" out=/tmp/conform"+fname
+    print("4: starting conform")
+    ###FOR DEMO NOT USING FILTERED FILE
+    #conformcmd="java -jar /home/conform-gt.24May16.cee.jar ref="+ref+" gt="+bcff+" chrom="+str(chrom)+" out=/tmp/conform"+fname
+    conformcmd="java -jar /home/conform-gt.24May16.cee.jar ref="+ref+" gt="+bgzipf+" chrom="+str(chrom)+" out=/tmp/conform"+fname
+    print(conformcmd) 
     client.containers.run("apaala/beagle:0.1", command=conformcmd, volumes={vol_dir:{'bind':'/tmp', 'mode':'rw'}})
     conf="/tmp/conform"+fname+".vcf.gz"
+    print("5: Tabix on conformed file")
+    #print("5: merging with bcftools")
 ###ADD bcftools merge cmd 
 #    $bcftools merge -m none -o $temp -Oz --threads 2 $conformed_file $peru_1KG  
-    mergec="bcftools merge -m none -o "+fname+"_"+str(chrom)+"_merged.vcf.gz -Oz --threads 2 "+conf+" "+ref
-    client.containers.run("dockerbiotools/bcftools:latest", command=mergec, volumes={vol_dir:{'bind':'/tmp', 'mode':'rw'}})
-
     tbxcon="tabix -p vcf "+conf
+    #print("Tabix on conformed file")
+    client.containers.run("dockerbiotools/bcftools:latest", command=[tbxcon], volumes={vol_dir:{'bind':'/tmp', 'mode':'rw'}})
+    ####Added --force-samples check with team to see if thats ok
+    print("6: merging with bcftools")
+    mergec="bcftools merge -m none --force-samples -o /tmp/"+fname+"_"+str(chrom)+"_merged.vcf.gz -Oz "+conf+" "+ref
+    client.containers.run("dockerbiotools/bcftools:latest", command=[mergec], volumes={vol_dir:{'bind':'/tmp', 'mode':'rw'}})
+    mergef="/tmp/"+fname+"_"+str(chrom)+"_merged.vcf.gz"
+    print("7: running tabix on merged file")
+    tbxcon="tabix -p vcf "+mergef
+    client.containers.run("dockerbiotools/bcftools:latest", command=[tbxcon], volumes={vol_dir:{'bind':'/tmp', 'mode':'rw'}})
+    print("8: conform on merged")
+    conformcmd="java -jar /home/conform-gt.24May16.cee.jar ref="+ref+" gt="+mergef+" chrom="+str(chrom)+" out=/tmp/merge_conform"+fname
+    client.containers.run("apaala/beagle:0.1", command=conformcmd, volumes={vol_dir:{'bind':'/tmp', 'mode':'rw'}})
+    mcf="/tmp/merge_conform"+fname+".vcf.gz"
+    print(mcf)
+    tbxcon="tabix -p vcf "+mcf
+    print("9: Tabix on merged conformed file")
     client.containers.run("dockerbiotools/bcftools:latest", command=[tbxcon], volumes={vol_dir:{'bind':'/tmp', 'mode':'rw'}})
     ##Change cmd to reflect beagle map file
-    cmap="/home/map38/plink.chr"+str(chrom)+".GRCh38.map"
-    beagcmd="java -jar /home/beagle.24Mar20.5f5.jar gt="+conf+" ref="+ref+" map="+cmap+" chrom="+str(chrom)+" impute=False"
-    client.containers.run("apaala/beagle:0.1",command=beagcmd,volumes={vol_dir: {'mode': 'rw', 'bind': '/tmp'}},tty=True)
+    #cmap="/home/map38/plink."+str(chrom)+".GRCh38.map"
+    cmap="plink.chr22.GRCh37.map"
+    print("10: running beagle")
+    ####EDITED FOR DEMO ONLY, NOT MERGED FILE
+    beagcmd="java -jar /home/beagle.24Mar20.5f5.jar gt="+mcf+" ref="+ref+" map=/tmp/"+cmap+" out=/tmp/beagle_"+fname+".phased chrom="+str(chrom)+" impute=False"
+    #beagcmd="beagle gt="+conf+" ref="+ref+" map="+cmap+" out=/tmp/beagle_"+fname+".phased chrom="+str(chrom)+" impute=False"
+    client.containers.run("apaala/beagle:0.1",command=beagcmd,volumes={vol_dir: {'mode': 'rw', 'bind': '/tmp'}})
+    print("11: Tabix on phased")
+    phased="beagle_"+fname+".phased.vcf.gz"
+    tbxcon="tabix -p vcf "+phased
+    client.containers.run("dockerbiotools/bcftools:latest", command=[tbxcon], volumes={vol_dir:{'bind':'/tmp', 'mode':'rw'}})
     
 
+tmp_reference="/tmp/"+os.path.basename(options.reference)
 tmp_target="/tmp/"+os.path.basename(options.target)
-prep_mod1(tmp_target, options.reference, options.name, options.chrom)
+prep_mod1(tmp_target, tmp_reference, options.name, options.chrom)
 #prep_mod_local(options.target, options.name)
 #def determine_map(chrom):
 #    hold=client.containers.run("apaala/beagle:0.1", command='ls *.
@@ -74,6 +99,7 @@ def prep_mod_local(target,ref, fname, outdir):
     print(bcfcmd)
 #    os.system(bcfcmd)
     bcffile=outdir+"/"+fname+ "_out.vcf.gz"
+    #conformcmd="java -jar /usr/local/packages/conform-gt/conform-gt.jar ref="+ref+" gt="+bcffile+" chrom=1"+" out=conform"+fname
     conformcmd="java -jar /usr/local/packages/conform-gt/conform-gt.jar ref="+ref+" gt="+bcffile+" chrom=1"+" out=conform"+fname
     print(conformcmd)
     conformf=outdir+ "/conform" +fname+".vcf.gz" 
