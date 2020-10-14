@@ -28,12 +28,15 @@ def prep_mod1(target,ref, fname,chrom):
     client.containers.run("dockerbiotools/bcftools:latest", command=[bgcmd] , volumes={vol_dir: {'mode': 'rw', 'bind': '/tmp'}})
     tbx_cmd="tabix -p vcf "+bgzipf
     client.containers.run("dockerbiotools/bcftools:latest", command=[tbx_cmd], volumes={vol_dir:{'bind':'/tmp', 'mode':'rw'}})
+
     print("2: running tabix")
     bcfcmd="bcftools filter --include 'AN=2*N_SAMPLES' -Oz -o /tmp/"+fname+"filt_out.vcf.gz "+ bgzipf
+
     print("3: filter with bcftools")
     client.containers.run("dockerbiotools/bcftools:latest", command=[bcfcmd], volumes={vol_dir:{'bind':'/tmp', 'mode':'rw'}})
     bcff="/tmp/"+fname+"filt_out.vcf.gz"
     ###Edit for chrom=1
+
     print("4: starting conform")
     ###FOR DEMO NOT USING FILTERED FILE
     conformcmd="java -jar /home/conform-gt.24May16.cee.jar ref="+ref+" gt="+bcff+" chrom="+str(chrom)+" match=POS out=/tmp/conform"+fname
@@ -42,41 +45,64 @@ def prep_mod1(target,ref, fname,chrom):
     client.containers.run("apaala/beagle:0.1", command=conformcmd, volumes={vol_dir:{'bind':'/tmp', 'mode':'rw'}})
     conf="/tmp/conform"+fname+".vcf.gz"
     print("5: Tabix on conformed file")
+
     #print("5: merging with bcftools")
-###ADD bcftools merge cmd 
-#    $bcftools merge -m none -o $temp -Oz --threads 2 $conformed_file $peru_1KG  
+    ###ADD bcftools merge cmd 
+    #    $bcftools merge -m none -o $temp -Oz --threads 2 $conformed_file $peru_1KG  
     tbxcon="tabix -p vcf "+conf
     #print("Tabix on conformed file")
     client.containers.run("dockerbiotools/bcftools:latest", command=[tbxcon], volumes={vol_dir:{'bind':'/tmp', 'mode':'rw'}})
     ####Added --force-samples check with team to see if thats ok
+    
     print("6: merging with bcftools")
     mergec="bcftools merge -m none -o /tmp/"+fname+"_"+str(chrom)+"_merged.vcf.gz -Oz "+conf+" "+ref
     client.containers.run("dockerbiotools/bcftools:latest", command=[mergec], volumes={vol_dir:{'bind':'/tmp', 'mode':'rw'}})
     mergef="/tmp/"+fname+"_"+str(chrom)+"_merged.vcf.gz"
+    
     print("7: running tabix on merged file")
     tbxcon="tabix -p vcf "+mergef
     client.containers.run("dockerbiotools/bcftools:latest", command=[tbxcon], volumes={vol_dir:{'bind':'/tmp', 'mode':'rw'}})
+    
     print("8: conform on merged")
     conformcmd="java -jar /home/conform-gt.24May16.cee.jar ref="+ref+" gt="+mergef+" chrom="+str(chrom)+" match=POS out=/tmp/merge_conform"+fname
     client.containers.run("apaala/beagle:0.1", command=conformcmd, volumes={vol_dir:{'bind':'/tmp', 'mode':'rw'}})
     mcf="/tmp/merge_conform"+fname+".vcf.gz"
     print(mcf)
     tbxcon="tabix -p vcf "+mcf
+    
     print("9: Tabix on merged conformed file")
     client.containers.run("dockerbiotools/bcftools:latest", command=[tbxcon], volumes={vol_dir:{'bind':'/tmp', 'mode':'rw'}})
     ##Change cmd to reflect beagle map file
     #cmap="/home/map38/plink."+str(chrom)+".GRCh38.map"
     cmap="plink.chr22.GRCh38.map"
+    
     print("10: running beagle")
     ####EDITED FOR DEMO ONLY, NOT MERGED FILE
     beagcmd="java -jar /home/beagle.24Mar20.5f5.jar gt="+mcf+" ref="+ref+" map=/tmp/"+cmap+" out=/tmp/beagle_"+fname+".phased chrom="+str(chrom)+" impute=False"
     #beagcmd="beagle gt="+conf+" ref="+ref+" map="+cmap+" out=/tmp/beagle_"+fname+".phased chrom="+str(chrom)+" impute=False"
     client.containers.run("apaala/beagle:0.1",command=beagcmd,volumes={vol_dir: {'mode': 'rw', 'bind': '/tmp'}})
+    
     print("11: Tabix on phased")
     phased="/tmp/beagle_"+fname+".phased.vcf.gz"
     tbxcon="tabix -p vcf "+phased
     client.containers.run("dockerbiotools/bcftools:latest", command=[tbxcon], volumes={vol_dir:{'bind':'/tmp', 'mode':'rw'}})
-    
+    #$bcftools view -S ^$ref -Ob -o $prefix.target.chr$chr.bcf $vcf
+    #$bcftools view -S $ref -Ob -o ref.chr$chr.bcf $vcf
+    #$bcftools index ref.chr$chr.bcf    
+    #$bcftools index $prefix.target.chr$chr.bcf
+    #bcfcmd="bcftools filter --include 'AN=2*N_SAMPLES' -Oz -o /tmp/"+fname+"filt_out.vcf.gz "+ bgzipf
+    print("12:generating bcf files")
+    prepcmd="bcftools view -S "+options.samples+" -Ob -o /tmp/"+fname+"target_prepped.bcf "+phased
+    client.containers.run("dockerbiotools/bcftools:latest", command=[prepcmd] , volumes={vol_dir: {'mode': 'rw', 'bind': '/tmp'}})
+    target_bcf="/tmp/"+fname+"target_prepped.bcf"
+    prepcmd="bcftools view -S "+options.samples+" -Ob -o /tmp/"+fname+"_ref_prepped.bcf "+ref
+    client.containers.run("dockerbiotools/bcftools:latest", command=[prepcmd] , volumes={vol_dir: {'mode': 'rw', 'bind': '/tmp'}})
+    ref_bcf="/tmp/"+fname+"_ref_prepped.bcf"
+    prepcmd="bcftools index "+target_bcf
+    client.containers.run("dockerbiotools/bcftools:latest", command=[prepcmd] , volumes={vol_dir: {'mode': 'rw', 'bind': '/tmp'}})
+    prepcmd="bcftools index "+ref_bcf
+
+
 
 tmp_reference="/tmp/"+os.path.basename(options.reference)
 tmp_target="/tmp/"+os.path.basename(options.target)
@@ -117,7 +143,7 @@ def prep_mod_local(target,ref, fname, outdir):
     ccmd="cat temp_"+mfile+ " "+samples+" > samples_chr"+fname+".txt"
     print(ccmd)
     #$bcftools view -S samples.chr$chr.txt -e 'GT[*] = "mis"' -o $merged -Oz $temp 
-#    bccmd="
+#   bccmd="
     #ref=/local/chib/toconnor_grp/LARGE-PD/1KG/HG38/chr$chr.1kg.HG38.vcf.gz 
     #java -jar $conform ref=$ref gt=$merged chrom=chr$chr out=$prefix.merged.chr$chr.CONFORM match=POS 
     #tabix $prefix.merged.chr$chr.CONFORM.vcf.gz 
