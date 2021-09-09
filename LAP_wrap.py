@@ -4,6 +4,7 @@ import getopt, sys, os
 from optparse import OptionParser
 import pathlib
 import pandas
+from zipfile import ZipFile
 
 parser = OptionParser() 
 parser.add_option("-t", "--target", dest="target",help="Path to target", metavar="FILE") 
@@ -56,6 +57,24 @@ def getref(pathm, chrnum):
     print(cmap)  
     return(cmap) 
 
+def combo(fname,outdir,chrn,qsubp):
+    jid="JN_"+fname
+    filterList= []
+    fileslist=os.listdir(outdir)
+    for f in fileslist:
+        if 'rfmix' in f and chrn in f:
+            print(f)
+            ff=outdir+"/"+f
+            filterList.append(ff)
+    lname=outdir+"/"+"combo"+chrn+".list"
+    #with open(lname, mode='wt', encoding='utf-8') as myfile:
+    #    myfile.write('\n'.join(filterList))
+    #    myfile.close()
+    scmd="tar -cvf "+outdir+"/"+combo_"+chrn+".tar -T "+lname
+    qcmd="qsub -cwd -b y -q all.q -P "+qsubp+" -l mem_free=2G -N Combo"+chrn+" -hold_jid "+jid+" -e "+outdir+"/"+"combo"+chrn+".err"+" -o "+outdir+"/"+"combo"+chrn+".out -V "+scmd
+    print(qcmd)
+    os.system(qcmd)
+
 chrns=getchr(options.target)
 
 for chrn in chrns:
@@ -64,5 +83,6 @@ for chrn in chrns:
     mapp=getmap(options.mapf, chrn)
     ref=options.reference
     perchrcall(chrnum,options.target, ref, n,options.outdir,options.samples,options.rsamples,options.refmap,mapp, options.qsubp)
+    combo(n,options.outdir,chrnum,options.qsubp)
 #chrnum=str(22)
 #perchrcall(chrnum,options.target, options.reference, options.name,options.outdir,options.samples,options.rsamples,options.refmap,options.mapf)

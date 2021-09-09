@@ -66,7 +66,7 @@ def prep_mod1(target,ref,fname,outd,chrom,sample,rsample,refmap,mapf):
     print("11: Tabix on phased")                                                                                                                 
     phased=outd+"/beagle_"+fname+".phased.vcf.gz"                                                                                                 
     tbxcon="tabix -p vcf "+phased                                                                                                                
-    os.system(tbxcon)                                                                                                                                             
+    os.system(tbxcon)
     print("12:generating vcf files")                                                                                                             
     prepcmd="bcftools view -S "+sample+" -Ov -o "+outd+"/"+fname+"target_prepped.vcf "+phased                                                   
     os.system(prepcmd)
@@ -78,7 +78,19 @@ def prep_mod1(target,ref,fname,outd,chrom,sample,rsample,refmap,mapf):
     #chromosome=22 ###make it into a loop!                                                                                                        
     prepcmd="rfmix -f "+target_bcf+" -r "+ref_bcf+" -m "+refmap+" -g "+mapf+" -o "+outd+"/"+fname+"_rfmix"+" --chromosome="+str(chrom)+" -e 1 --n-threads=8 --crf-weight=3"
     print(prepcmd)
-    os.system(prepcmd)  
+    os.system(prepcmd)
+    filterList= [] 
+    fileslist=os.listdir(outd) 
+    for f in fileslist: 
+        if 'rfmix' in f and str(chrom) in f: 
+            print(f) 
+            ff=outd+"/"+f 
+            filterList.append(ff)
+    lname=outd+"/"+"combo"+str(chrom)+".list" 
+    with open(lname, mode='wt', encoding='utf-8') as myfile: 
+        myfile.write('\n'.join(filterList))
+        myfile.write('\n') 
+        myfile.close() 
                                                                                                                                           
 tmp_reference=os.path.basename(options.reference)
 tmp_reference=os.path.basename(options.reference)                                                                                                
