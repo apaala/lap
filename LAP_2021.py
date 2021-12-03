@@ -22,23 +22,8 @@ def prep_mod1(target,ref,fname,outd,chrom,sample,rsample,refmap,mapf):
     #Step 1: BGZIP target file
     bgcmd="bgzip -c "+target+" > "+outd+"/"+fname+".vcf.gz"
     print("1: starting bgzip")
-    #print(bgcmd)
-    #os.system(bgcmd)
-    #bgzipf=outd+"/"+fname+".vcf.gz"
-    #print(bgzipf)
-    #Check if file was created and has values.
-    #if(os.stat(bgzipf).st_size == 0):
-    #    sys.exit("Could not generate BGZIP file. Failed at Step 1/13")
-    #decompress bgzip file
-    #bgzipf=target
-    #bgcmd="bgzip -d "+bgzipf
-    #os.system(bgcmd)
-    #bgzipf=outd+"/"+fname+".vcf"
     bgzipf=target
-    #Check if decompressed file generated
-    #if(os.stat(bgzipf).st_size == 0):
-    #    sys.exit("Could not generate decompressed file. Failed at Step 1/13")
-
+    
     #Step 2: Tabix
     tbxf=bgzipf+".tbi"
     tbx_cmd="tabix -p vcf "+bgzipf
